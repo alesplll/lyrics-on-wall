@@ -1,6 +1,7 @@
 # 🎵 Lyrics on Wall
 
 > Karaoke-style lyrics in your browser — for whatever's playing in the room.
+<img width="1385" height="899" alt="image" src="https://github.com/user-attachments/assets/8b11884f-9b0e-4197-80ac-6885b97b7efc" />
 
 Listens to ambient audio via microphone → recognizes the song → fetches time-synced lyrics → streams them live to a fullscreen browser tab, line by line.
 
