@@ -68,8 +68,19 @@ class AudDRecognizer:
             return None
 
         r = data["result"]
+
+        # Parse "mm:ss" timecode — position in song where our clip matched
+        timecode = 0.0
+        tc_str = r.get("timecode", "")
+        try:
+            parts = tc_str.split(":")
+            timecode = int(parts[0]) * 60 + int(parts[1])
+        except Exception:
+            pass
+
         return {
-            "artist": r.get("artist", ""),
-            "title":  r.get("title", ""),
-            "album":  r.get("album", ""),
+            "artist":   r.get("artist", ""),
+            "title":    r.get("title", ""),
+            "album":    r.get("album", ""),
+            "timecode": timecode,
         }

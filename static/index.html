@@ -43,15 +43,25 @@
       max-width: 90vw;
     }
 
-    #prev-line {
+    #prev-line,
+    #next-line {
       font-size: clamp(18px, 2.8vw, 40px);
       color: var(--prev);
       opacity: 0;
-      transform: translateY(-6px);
       min-height: 1.5em;
+      transition: opacity 0.4s ease, transform 0.4s ease;
     }
 
-    #prev-line.visible {
+    #prev-line {
+      transform: translateY(-6px);
+    }
+
+    #next-line {
+      transform: translateY(6px);
+    }
+
+    #prev-line.visible,
+    #next-line.visible {
       opacity: 1;
       transform: translateY(0);
     }
@@ -164,6 +174,7 @@
   <!-- Lyrics lines -->
   <div id="prev-line"    class="line"></div>
   <div id="current-line" class="line"></div>
+  <div id="next-line"    class="line"></div>
 </div>
 
 <!-- Song metadata -->
@@ -178,19 +189,20 @@
     noLyrics:    document.getElementById('no-lyrics'),
     prevLine:    document.getElementById('prev-line'),
     currentLine: document.getElementById('current-line'),
+    nextLine:    document.getElementById('next-line'),
     meta:        document.getElementById('meta'),
     metaTitle:   document.getElementById('meta-title'),
     metaArtist:  document.getElementById('meta-artist'),
   };
 
   let lastCurrent = '';
-  let lastPrev    = '';
 
   function showOnly(id) {
-    els.listening.style.display   = id === 'listening' ? 'flex' : 'none';
+    els.listening.style.display   = id === 'listening' ? 'flex'  : 'none';
     els.noLyrics.style.display    = id === 'no-lyrics'  ? 'block' : 'none';
     els.prevLine.style.display    = id === 'lyrics'     ? 'block' : 'none';
     els.currentLine.style.display = id === 'lyrics'     ? 'block' : 'none';
+    els.nextLine.style.display    = id === 'lyrics'     ? 'block' : 'none';
   }
 
   function setMeta(artist, title) {
@@ -233,13 +245,11 @@
         lastCurrent = s.current;
       }
 
-      if (s.prev !== lastPrev) {
-        lastPrev = s.prev;
-      }
-
       els.currentLine.textContent = s.current || '';
       els.prevLine.textContent    = s.prev    || '';
+      els.nextLine.textContent    = s.next    || '';
       els.prevLine.classList.toggle('visible', !!s.prev);
+      els.nextLine.classList.toggle('visible', !!s.next);
     }
   }
 

@@ -1,7 +1,7 @@
 """
 Lyrics on Wall — main entry point.
 
-Listens to ambient audio, recognizes songs via ACRCloud,
+Listens to ambient audio, recognizes songs via AudD,
 fetches synced lyrics from LRCLIB, and serves them to a browser via SSE.
 """
 
@@ -31,31 +31,34 @@ logger = logging.getLogger("main")
 SAMPLE_RATE     = int(os.getenv("SAMPLE_RATE", "44100"))
 AUDIO_DEVICE    = int(os.getenv("AUDIO_DEVICE")) if os.getenv("AUDIO_DEVICE") else None
 RECORD_SECONDS  = 5
-RECOGNIZE_EVERY = int(os.getenv("RECOGNIZE_EVERY", "15"))  # override via .env for debugging
-LOOP_INTERVAL   = 0.2  # seconds between state pushes
+RECOGNIZE_EVERY = int(os.getenv("RECOGNIZE_EVERY", "15"))
+LOOP_INTERVAL   = 0.2
 SERVER_PORT     = 5500
 
 
-def record_audio(sample_rate: int, duration: float) -> np.ndarray:
+def record_audio(sample_rate: int, duration: float) -> tuple[np.ndarray, float]:
+    """Record audio and return (samples, monotonic timestamp when recording ended)."""
     frames = int(sample_rate * duration)
     audio = sd.rec(
         frames, samplerate=sample_rate, channels=1, dtype="float32",
         device=AUDIO_DEVICE,
     )
     sd.wait()
-    return audio.flatten()
+    return audio.flatten(), time.monotonic()
 
 
 def recognition_worker(
-    recognizer: ACRCloudRecognizer,
+    recognizer: AudDRecognizer,
     result_queue: queue.Queue,
     stop_event: threading.Event,
 ):
     while not stop_event.is_set():
         logger.info("Recording %ds of audio…", RECORD_SECONDS)
         try:
-            audio = record_audio(SAMPLE_RATE, RECORD_SECONDS)
+            audio, record_end_time = record_audio(SAMPLE_RATE, RECORD_SECONDS)
             info = recognizer.recognize(audio)
+            if info is not None:
+                info["record_end_time"] = record_end_time
         except Exception as e:
             logger.warning("Recognition error: %s", e)
             info = None
@@ -73,21 +76,18 @@ def main():
         sample_rate=SAMPLE_RATE,
     )
 
-    # Start Flask server in background thread
     server_thread = threading.Thread(
         target=run_server, kwargs={"port": SERVER_PORT}, daemon=True
     )
     server_thread.start()
     logger.info("Server running at http://127.0.0.1:%d", SERVER_PORT)
 
-    # Open browser after a short delay so Flask is ready
     def open_browser():
         time.sleep(1.0)
         webbrowser.open(f"http://127.0.0.1:{SERVER_PORT}")
 
     threading.Thread(target=open_browser, daemon=True).start()
 
-    # State
     current_song: dict | None = None
     lyric_lines: list         = []
     is_synced: bool           = False
@@ -106,7 +106,6 @@ def main():
 
     try:
         while True:
-            # Pull latest recognition result (non-blocking)
             try:
                 info = result_queue.get_nowait()
                 if info is not None:
@@ -115,10 +114,20 @@ def main():
                         (current_song["artist"], current_song["title"])
                         if current_song else None
                     )
+
+                    # Recalculate song_start_time on every recognition using timecode
+                    # record_end_time - timecode = when the song actually started
+                    record_end_time = info.get("record_end_time", time.monotonic())
+                    timecode        = info.get("timecode", 0.0)
+                    song_start_time = record_end_time - timecode
+                    logger.info(
+                        "Timecode: %.0fs → song started %.0fs ago",
+                        timecode, time.monotonic() - song_start_time,
+                    )
+
                     if song_key != cur_key:
                         logger.info("New song: %s — %s", info["artist"], info["title"])
-                        current_song    = info
-                        song_start_time = time.monotonic()
+                        current_song = info
                         lyric_lines, is_synced = fetch_lyrics(
                             info["artist"], info["title"], info.get("album", "")
                         )
@@ -128,7 +137,6 @@ def main():
             except queue.Empty:
                 pass
 
-            # Build and push state to SSE clients
             if current_song is None:
                 set_state({"status": "listening"})
 
@@ -140,15 +148,15 @@ def main():
                 })
 
             else:
+                elapsed = time.monotonic() - song_start_time
+
                 if is_synced:
-                    elapsed = time.monotonic() - song_start_time
-                    current_line, prev_line = get_current_line(lyric_lines, elapsed)
+                    current_line, prev_line, next_line = get_current_line(lyric_lines, elapsed)
                 else:
-                    # Plain lyrics: no timing, just cycle through lines slowly
-                    elapsed  = time.monotonic() - song_start_time
-                    idx      = min(int(elapsed / 4), len(lyric_lines) - 1)
+                    idx          = min(int(elapsed / 4), len(lyric_lines) - 1)
                     current_line = lyric_lines[idx][1]
                     prev_line    = lyric_lines[idx - 1][1] if idx > 0 else ""
+                    next_line    = lyric_lines[idx + 1][1] if idx + 1 < len(lyric_lines) else ""
 
                 set_state({
                     "status":  "lyrics",
@@ -156,6 +164,7 @@ def main():
                     "title":   current_song["title"],
                     "current": current_line,
                     "prev":    prev_line,
+                    "next":    next_line,
                 })
 
             time.sleep(LOOP_INTERVAL)
