@@ -1,47 +1,45 @@
 # 🎵 Lyrics on Wall
 
 > Karaoke-style lyrics in your browser — for whatever's playing in the room.
+
 <img width="1385" height="899" alt="image" src="https://github.com/user-attachments/assets/8b11884f-9b0e-4197-80ac-6885b97b7efc" />
 
-Listens to ambient audio via microphone → recognizes the song → fetches time-synced lyrics → streams them live to a fullscreen browser tab, line by line.
+Listens to ambient audio via microphone → recognizes the song via [AudD](https://audd.io/) → fetches time-synced lyrics from [LRCLIB](https://lrclib.net/) → streams them live to a fullscreen browser tab.
+
+
 
 ---
 
 ## ✨ Features
 
 - 🎤 **Passive listening** — no manual input, just plays in the background
-- 🔍 **Auto song recognition** via [ACRCloud](https://www.acrcloud.com/) (free tier)
-- 📜 **Synced lyrics** from [LRCLIB](https://lrclib.net/) — open, no API key needed
-- 🌐 **Browser-based display** — open in Firefox, works on any screen
-- ✨ **Smooth CSS animations** — lines fade in on change, dots pulse while listening
+- 🔍 **Song recognition** via [AudD](https://audd.io/) — free tier, no card required
+- 📜 **Synced lyrics** from [LRCLIB](https://lrclib.net/) — open API, no key needed
+- 🌐 **Browser display** — open in any browser, works on any screen or TV
+- 🎞️ **5-line teleprompter view** — 2 past + current + 2 upcoming lines
+- ⏱️ **Timecode sync** — uses AudD's timecode response to lock lyrics to actual song position
 - 🔄 **Graceful fallbacks** — plain lyrics → title/artist → animated "Listening..."
-- 🧵 **Non-blocking** — recognition runs in a background thread, stream never freezes
 
 ---
 
-## 🖼️ Display
+## 🖼️ Display layout
 
 ```
-┌─────────────────────────────────────────────────┐
-│                                                 │
-│                                                 │
-│         previous line, small & dimmed           │
-│                                                 │
-│        CURRENT LINE, LARGE & WHITE              │
-│                                                 │
-│                                                 │
-│                              Song Title         │
-│                              Artist Name        │
-└─────────────────────────────────────────────────┘
-```
+  two lines back, small & dark
+  one line back, medium & gray
+  CURRENT LINE — large & white
+  one line ahead, medium & gray
+  two lines ahead, small & dark
 
-While no song is detected — three pulsing dots + "LISTENING" label.
+                          Song Title  ←── bottom-right
+                          Artist Name
+```
 
 ---
 
 ## 🚀 Quick start
 
-### 1. Clone & set up environment
+### 1. Clone & install
 
 ```bash
 git clone <repo-url> lyrics-on-wall
@@ -50,23 +48,22 @@ python -m venv .venv
 .venv/bin/pip install -r requirements.txt
 ```
 
-### 2. Get ACRCloud credentials (free, no card)
+### 2. Get AudD token — free, no card
 
-1. Register at **[acrcloud.com](https://www.acrcloud.com/)**
-2. Console → **Create Project** → type: *Audio & Video Recognition*
-3. Copy **Host**, **Access Key**, **Access Secret**
+Register at **[dashboard.audd.io](https://dashboard.audd.io/)** → copy your API token.
 
-### 3. Configure `.env`
+### 3. Configure
 
 ```bash
 cp .env.example .env
+# edit .env and paste your token
 ```
 
 ```ini
-ACR_HOST=identify-eu-west-1.acrcloud.com
-ACR_KEY=your_access_key_here
-ACR_SECRET=your_access_secret_here
+AUDD_TOKEN=your_token_here
 SAMPLE_RATE=44100
+LYRIC_OFFSET=2.0        # seconds to add to sync compensation
+# AUDIO_DEVICE=15       # optional: override mic device index
 ```
 
 ### 4. Run
@@ -75,8 +72,42 @@ SAMPLE_RATE=44100
 .venv/bin/python main.py
 ```
 
-Firefox opens automatically at `http://127.0.0.1:5500`.
-Press **F11** for true fullscreen. Stop with **Ctrl+C** in the terminal.
+Browser opens automatically at `http://localhost:5500`. Press **F11** for fullscreen. Stop with **Ctrl+C**.
+
+---
+
+## 🐳 Docker
+
+```bash
+docker compose up --build
+```
+
+The container uses your system's PulseAudio socket for microphone access. No `AUDIO_DEVICE` needed inside Docker — leave it unset in `.env`.
+
+> Requires PipeWire or PulseAudio on the host. The socket at `/run/user/1000/pulse/native` is mounted automatically via `docker-compose.yml`.
+
+---
+
+## ⚙️ How it works
+
+```
+Microphone
+    │  4s PCM audio, every 7s
+    ▼
+AudD API  ──►  artist / title / timecode
+                    │
+                    ├─ timecode used to calculate exact song position
+                    │
+                    ▼  (on new song)
+               LRCLIB API  ──►  synced LRC lyrics
+                                      │
+                                      ▼  every 200ms
+                               Flask SSE /stream
+                                      │
+                                      ▼
+                           Browser (index.html)
+                        5-line view + scroll animation
+```
 
 ---
 
@@ -84,16 +115,32 @@ Press **F11** for true fullscreen. Stop with **Ctrl+C** in the terminal.
 
 ```
 lyrics-on-wall/
-├── main.py          # entry point, main loop, state manager
-├── recognizer.py    # ACRCloud audio recognition
-├── lyrics.py        # LRCLIB fetch + LRC parser
-├── server.py        # Flask server + SSE /stream endpoint
+├── main.py              # entry point — recognition loop + state manager
+├── recognizer.py        # AudD song recognition (via curl subprocess)
+├── lyrics.py            # LRCLIB fetch + LRC parser
+├── server.py            # Flask server + SSE /stream endpoint
 ├── static/
-│   └── index.html   # frontend (HTML + CSS + vanilla JS)
-├── test_lyrics.py   # unit tests for LRC parser
-├── .env.example     # credentials template
+│   └── index.html       # frontend — HTML + CSS + vanilla JS
+├── scripts/
+│   └── diagnose.py      # standalone mic + API diagnostic tool
+├── test_lyrics.py       # unit tests for LRC parser
+├── Dockerfile
+├── docker-compose.yml
+├── .env.example
 └── requirements.txt
 ```
+
+---
+
+## 🔧 Config reference
+
+| Variable | Default | Description |
+|---|---|---|
+| `AUDD_TOKEN` | — | AudD API token (required) |
+| `SAMPLE_RATE` | `44100` | Microphone sample rate |
+| `LYRIC_OFFSET` | `2.0` | Seconds added to elapsed time for sync compensation |
+| `AUDIO_DEVICE` | system default | PortAudio device index (bare-metal only) |
+| `RECOGNIZE_EVERY` | `7` | Seconds between recognition cycles |
 
 ---
 
@@ -105,54 +152,28 @@ lyrics-on-wall/
 
 ---
 
-## ⚙️ How it works
-
-```
-Microphone
-    │  (5s PCM, every 15s, background thread)
-    ▼
-ACRCloud API  ──►  artist / title / album
-                        │
-                        ▼  (on song change)
-                   LRCLIB API  ──►  synced LRC lyrics
-                                          │
-                                          ▼  (every 200ms)
-                                   Flask SSE /stream
-                                          │
-                                          ▼
-                                  Firefox (index.html)
-                              CSS fade-in on line change
-```
-
----
-
-## 📦 Dependencies
-
-| Package | Purpose |
-|---|---|
-| `sounddevice` | Microphone capture |
-| `numpy` | Audio buffer handling |
-| `requests` | HTTP — ACRCloud & LRCLIB |
-| `flask` | Local web server + SSE stream |
-| `python-dotenv` | `.env` config loading |
-| `pytest` | Tests |
-
----
-
 ## 🐛 Troubleshooting
 
-**No audio input / wrong device**
+**Mic not working / zero peak level**
 ```bash
-python -c "import sounddevice; print(sounddevice.query_devices())"
+# list devices
+.venv/bin/python -c "import sounddevice; print(sounddevice.query_devices())"
+# check mute status
+pactl get-source-mute @DEFAULT_SOURCE@
+pactl set-source-mute @DEFAULT_SOURCE@ 0
 ```
-Set the desired device index in `main.py` → `sd.rec(..., device=N)`.
 
-**ACRCloud always returns no match**
-- Microphone might not pick up room audio well enough
-- Check credentials in `.env` are correct and the project type is *Audio & Video Recognition*
+**Lyrics out of sync**
+Adjust `LYRIC_OFFSET` in `.env`. Positive values shift lyrics forward (ahead of audio).
 
-**Browser doesn't open automatically**
-Navigate manually to `http://127.0.0.1:5500`
+**AudD not recognizing**
+Run the diagnostic tool with music playing:
+```bash
+.venv/bin/python scripts/diagnose.py
+```
+
+**Browser doesn't open**
+Navigate manually to `http://localhost:5500`
 
 ---
 
