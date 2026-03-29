@@ -8,11 +8,12 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #0a0a0a;
-      --current: #ffffff;
-      --prev: #555555;
-      --meta: #333333;
-      --accent: #1a1a1a;
+      --bg:       #0a0a0a;
+      --current:  #ffffff;
+      --near:     #484848;
+      --far:      #282828;
+      --meta:     #2a2a2a;
+      --pad:      10vw;
     }
 
     html, body {
@@ -23,7 +24,7 @@
       user-select: none;
     }
 
-    /* ── Main stage ── */
+    /* ── Stage ── */
     #stage {
       display: flex;
       flex-direction: column;
@@ -31,245 +32,191 @@
       justify-content: center;
       width: 100vw;
       height: 100vh;
-      padding: 0 8vw;
-      gap: 2rem;
     }
 
-    /* ── Lyric lines ── */
+    /* ── Lyrics block ── */
+    #lyrics-block {
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      width: 100%;
+      padding: 0 var(--pad);
+      gap: 3em;
+    }
+
     .line {
-      text-align: center;
-      line-height: 1.25;
-      transition: opacity 0.4s ease, transform 0.4s ease;
-      max-width: 90vw;
+      text-align: left;
+      line-height: 1.2;
+      transition: color 0.3s ease, opacity 0.3s ease, font-size 0.3s ease;
     }
 
-    #prev-line,
-    #next-line {
-      font-size: clamp(18px, 2.8vw, 40px);
-      color: var(--prev);
-      opacity: 0;
-      min-height: 1.5em;
-      transition: opacity 0.4s ease, transform 0.4s ease;
-    }
-
-    #prev-line {
-      transform: translateY(-6px);
-    }
-
-    #next-line {
-      transform: translateY(6px);
-    }
-
-    #prev-line.visible,
-    #next-line.visible {
-      opacity: 1;
-      transform: translateY(0);
-    }
-
-    #current-line {
-      font-size: clamp(32px, 5.5vw, 80px);
+    .line-far  { font-size: clamp(20px, 2.4vw, 36px); color: var(--far);  opacity: 1; }
+    .line-near { font-size: clamp(26px, 3.4vw, 52px); color: var(--near); opacity: 1; }
+    .line-cur  {
+      font-size: clamp(32px, 5vw, 76px);
       font-weight: 700;
       color: var(--current);
       letter-spacing: -0.01em;
-      min-height: 1.5em;
     }
 
-    /* Fade animation on lyric change */
-    #current-line.changing {
-      animation: lyric-change 0.35s ease;
+    /* Scroll-up animation on line change */
+    #lyrics-block.scrolling {
+      animation: scroll-up 0.35s cubic-bezier(0.22, 0.61, 0.36, 1);
     }
 
-    @keyframes lyric-change {
-      0%   { opacity: 0.2; transform: translateY(8px); }
-      100% { opacity: 1;   transform: translateY(0); }
+    @keyframes scroll-up {
+      from { transform: translateY(0.6em); opacity: 0.4; }
+      to   { transform: translateY(0);     opacity: 1;   }
     }
 
     /* ── Song meta ── */
     #meta {
       position: fixed;
-      bottom: 28px;
+      bottom: 24px;
       right: 36px;
       text-align: right;
       opacity: 0;
       transition: opacity 0.6s ease;
     }
-
     #meta.visible { opacity: 1; }
+    #meta .title  { font-size: clamp(15px, 1.3vw, 22px); color: #666; font-weight: 600; }
+    #meta .artist { font-size: clamp(13px, 1.1vw, 18px); color: #333; margin-top: 3px; }
 
-    #meta .title {
-      font-size: clamp(13px, 1.1vw, 18px);
-      color: #888;
-      font-weight: 600;
-      letter-spacing: 0.03em;
-    }
-
-    #meta .artist {
-      font-size: clamp(11px, 0.9vw, 15px);
-      color: #444;
-      margin-top: 2px;
-    }
-
-    /* ── Listening indicator ── */
+    /* ── Listening ── */
     #listening {
       display: none;
       flex-direction: column;
       align-items: center;
-      gap: 28px;
+      gap: 24px;
     }
-
     #listening .label {
-      font-size: clamp(18px, 2vw, 28px);
-      color: #2a2a2a;
-      letter-spacing: 0.15em;
+      font-size: clamp(14px, 1.6vw, 22px);
+      color: #222;
+      letter-spacing: 0.18em;
       text-transform: uppercase;
     }
-
-    .dots {
-      display: flex;
-      gap: 10px;
-    }
-
-    .dot {
-      width: 8px;
-      height: 8px;
+    .dots { display: flex; gap: 9px; }
+    .dot  {
+      width: 7px; height: 7px;
       border-radius: 50%;
-      background: #2a2a2a;
+      background: #222;
       animation: pulse 1.4s ease-in-out infinite;
     }
-
     .dot:nth-child(2) { animation-delay: 0.2s; }
     .dot:nth-child(3) { animation-delay: 0.4s; }
-
     @keyframes pulse {
       0%, 80%, 100% { transform: scale(0.6); opacity: 0.3; }
-      40%            { transform: scale(1.0); opacity: 1;   }
+      40%           { transform: scale(1.0); opacity: 1;   }
     }
 
-    /* ── No lyrics fallback ── */
+    /* ── No lyrics ── */
     #no-lyrics {
       display: none;
-      font-size: clamp(22px, 3.5vw, 52px);
-      color: #333;
-      text-align: center;
-      max-width: 80vw;
+      font-size: clamp(20px, 3vw, 48px);
+      color: #2a2a2a;
+      text-align: left;
+      padding: 0 var(--pad);
+      width: 100%;
     }
   </style>
 </head>
 <body>
 
 <div id="stage">
-  <!-- Listening state -->
   <div id="listening">
     <div class="dots">
-      <div class="dot"></div>
-      <div class="dot"></div>
-      <div class="dot"></div>
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div>
     </div>
     <div class="label">Listening</div>
   </div>
 
-  <!-- No lyrics fallback -->
   <div id="no-lyrics"></div>
 
-  <!-- Lyrics lines -->
-  <div id="prev-line"    class="line"></div>
-  <div id="current-line" class="line"></div>
-  <div id="next-line"    class="line"></div>
+  <div id="lyrics-block">
+    <div id="line-prev2" class="line line-far"></div>
+    <div id="line-prev1" class="line line-near"></div>
+    <div id="line-cur"   class="line line-cur"></div>
+    <div id="line-next1" class="line line-near"></div>
+    <div id="line-next2" class="line line-far"></div>
+  </div>
 </div>
 
-<!-- Song metadata -->
 <div id="meta">
-  <div class="title" id="meta-title"></div>
+  <div class="title"  id="meta-title"></div>
   <div class="artist" id="meta-artist"></div>
 </div>
 
 <script>
-  const els = {
-    listening:   document.getElementById('listening'),
-    noLyrics:    document.getElementById('no-lyrics'),
-    prevLine:    document.getElementById('prev-line'),
-    currentLine: document.getElementById('current-line'),
-    nextLine:    document.getElementById('next-line'),
-    meta:        document.getElementById('meta'),
-    metaTitle:   document.getElementById('meta-title'),
-    metaArtist:  document.getElementById('meta-artist'),
+  const el = {
+    listening:  document.getElementById('listening'),
+    noLyrics:   document.getElementById('no-lyrics'),
+    block:      document.getElementById('lyrics-block'),
+    prev2:      document.getElementById('line-prev2'),
+    prev1:      document.getElementById('line-prev1'),
+    cur:        document.getElementById('line-cur'),
+    next1:      document.getElementById('line-next1'),
+    next2:      document.getElementById('line-next2'),
+    meta:       document.getElementById('meta'),
+    metaTitle:  document.getElementById('meta-title'),
+    metaArtist: document.getElementById('meta-artist'),
   };
 
   let lastCurrent = '';
 
-  function showOnly(id) {
-    els.listening.style.display   = id === 'listening' ? 'flex'  : 'none';
-    els.noLyrics.style.display    = id === 'no-lyrics'  ? 'block' : 'none';
-    els.prevLine.style.display    = id === 'lyrics'     ? 'block' : 'none';
-    els.currentLine.style.display = id === 'lyrics'     ? 'block' : 'none';
-    els.nextLine.style.display    = id === 'lyrics'     ? 'block' : 'none';
+  function show(id) {
+    el.listening.style.display = id === 'listening' ? 'flex'  : 'none';
+    el.noLyrics.style.display  = id === 'no-lyrics'  ? 'block' : 'none';
+    el.block.style.display     = id === 'lyrics'     ? 'flex'  : 'none';
   }
 
   function setMeta(artist, title) {
-    if (artist && title) {
-      els.metaTitle.textContent  = title;
-      els.metaArtist.textContent = artist;
-      els.meta.classList.add('visible');
-    } else {
-      els.meta.classList.remove('visible');
-    }
+    el.metaTitle.textContent  = title  || '';
+    el.metaArtist.textContent = artist || '';
+    el.meta.classList.toggle('visible', !!(artist && title));
   }
 
-  function triggerChangeAnim() {
-    els.currentLine.classList.remove('changing');
-    // Force reflow so re-adding the class restarts the animation
-    void els.currentLine.offsetWidth;
-    els.currentLine.classList.add('changing');
+  function scrollAnim() {
+    el.block.classList.remove('scrolling');
+    void el.block.offsetWidth; // reflow
+    el.block.classList.add('scrolling');
   }
 
   function applyState(s) {
     if (s.status === 'listening') {
-      showOnly('listening');
+      show('listening');
       setMeta('', '');
       return;
     }
-
     if (s.status === 'no_lyrics') {
-      showOnly('no-lyrics');
-      els.noLyrics.textContent = `♪ ${s.artist} — ${s.title}`;
+      show('no-lyrics');
+      el.noLyrics.textContent = `♪ ${s.artist} — ${s.title}`;
       setMeta(s.artist, s.title);
       return;
     }
-
     if (s.status === 'lyrics') {
-      showOnly('lyrics');
+      show('lyrics');
       setMeta(s.artist, s.title);
 
       if (s.current !== lastCurrent) {
-        triggerChangeAnim();
+        scrollAnim();
         lastCurrent = s.current;
       }
 
-      els.currentLine.textContent = s.current || '';
-      els.prevLine.textContent    = s.prev    || '';
-      els.nextLine.textContent    = s.next    || '';
-      els.prevLine.classList.toggle('visible', !!s.prev);
-      els.nextLine.classList.toggle('visible', !!s.next);
+      el.prev2.textContent = s.prev2 || '';
+      el.prev1.textContent = s.prev1 || '';
+      el.cur.textContent   = s.current || '';
+      el.next1.textContent = s.next1 || '';
+      el.next2.textContent = s.next2 || '';
     }
   }
 
-  // ── SSE connection with auto-reconnect ──
   function connect() {
     const src = new EventSource('/stream');
-
-    src.onmessage = e => {
-      try { applyState(JSON.parse(e.data)); }
-      catch (_) {}
-    };
-
-    src.onerror = () => {
-      src.close();
-      setTimeout(connect, 2000);
-    };
+    src.onmessage = e => { try { applyState(JSON.parse(e.data)); } catch(_) {} };
+    src.onerror   = () => { src.close(); setTimeout(connect, 2000); };
   }
 
-  // Start in listening state
-  showOnly('listening');
+  show('listening');
   connect();
 </script>
 </body>

@@ -38,19 +38,20 @@ def test_parse_millisecond_timestamps():
 
 
 def test_get_current_line_before_start():
-    lines = [(5.0, "Line A"), (10.0, "Line B"), (15.0, "Line C")]
-    # Elapsed before first timestamp → returns first line, no prev
-    current, prev = get_current_line(lines, elapsed=2.0)
-    assert current == "Line A"
-    assert prev == ""
+    lines = [(5.0, "A"), (10.0, "B"), (15.0, "C"), (20.0, "D"), (25.0, "E")]
+    prev2, prev1, current, next1, next2 = get_current_line(lines, elapsed=2.0)
+    assert current == "A"
+    assert prev1 == "" and prev2 == ""
+    assert next1 == "B" and next2 == "C"
 
 
 def test_get_current_line_mid_song():
-    lines = [(5.0, "Line A"), (10.0, "Line B"), (15.0, "Line C")]
-    current, prev = get_current_line(lines, elapsed=12.0)
-    assert current == "Line B"
-    assert prev == "Line A"
+    lines = [(5.0, "A"), (10.0, "B"), (15.0, "C"), (20.0, "D"), (25.0, "E")]
+    prev2, prev1, current, next1, next2 = get_current_line(lines, elapsed=16.0)
+    assert current == "C"
+    assert prev1 == "B" and prev2 == "A"
+    assert next1 == "D" and next2 == "E"
 
 
 def test_get_current_line_empty():
-    assert get_current_line([], elapsed=10.0) == ("", "")
+    assert get_current_line([], elapsed=10.0) == ("", "", "", "", "")

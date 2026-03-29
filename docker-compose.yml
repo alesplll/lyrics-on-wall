@@ -1,0 +1,14 @@
+services:
+  lyrics:
+    build: .
+    ports:
+      - "5500:5500"
+    env_file: .env
+    user: "1000:1000"
+    volumes:
+      # Mount PulseAudio socket at the same path as on the host
+      - /run/user/1000/pulse/native:/run/user/1000/pulse/native
+    environment:
+      - PULSE_SERVER=unix:/run/user/1000/pulse/native
+      - XDG_RUNTIME_DIR=/run/user/1000
+    restart: unless-stopped

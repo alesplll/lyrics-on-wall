@@ -49,5 +49,5 @@ def stream():
     )
 
 
-def run(host="127.0.0.1", port=5500):
+def run(host="0.0.0.0", port=5500):
     app.run(host=host, port=port, threaded=True, use_reloader=False)

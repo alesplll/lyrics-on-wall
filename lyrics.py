@@ -69,12 +69,12 @@ def fetch_lyrics(
 
 def get_current_line(
     lines: list[tuple[float, str]], elapsed: float
-) -> tuple[str, str, str]:
+) -> tuple[str, str, str, str, str]:
     """
-    Given synced lyric lines and elapsed seconds, return (current, prev, next).
+    Return (prev2, prev1, current, next1, next2) for the given elapsed time.
     """
     if not lines:
-        return "", "", ""
+        return "", "", "", "", ""
 
     current_idx = 0
     for i, (t, _) in enumerate(lines):
@@ -83,7 +83,13 @@ def get_current_line(
         else:
             break
 
-    current = lines[current_idx][1]
-    prev    = lines[current_idx - 1][1] if current_idx > 0 else ""
-    next_   = lines[current_idx + 1][1] if current_idx + 1 < len(lines) else ""
-    return current, prev, next_
+    def at(idx: int) -> str:
+        return lines[idx][1] if 0 <= idx < len(lines) else ""
+
+    return (
+        at(current_idx - 2),
+        at(current_idx - 1),
+        at(current_idx),
+        at(current_idx + 1),
+        at(current_idx + 2),
+    )

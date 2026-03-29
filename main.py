@@ -30,8 +30,9 @@ logger = logging.getLogger("main")
 
 SAMPLE_RATE     = int(os.getenv("SAMPLE_RATE", "44100"))
 AUDIO_DEVICE    = int(os.getenv("AUDIO_DEVICE")) if os.getenv("AUDIO_DEVICE") else None
-RECORD_SECONDS  = 5
-RECOGNIZE_EVERY = int(os.getenv("RECOGNIZE_EVERY", "15"))
+LYRIC_OFFSET    = float(os.getenv("LYRIC_OFFSET", "2.0"))
+RECORD_SECONDS  = 4
+RECOGNIZE_EVERY = int(os.getenv("RECOGNIZE_EVERY", "7"))   # 4s record + 3s wait
 LOOP_INTERVAL   = 0.2
 SERVER_PORT     = 5500
 
@@ -148,23 +149,26 @@ def main():
                 })
 
             else:
-                elapsed = time.monotonic() - song_start_time
+                elapsed = time.monotonic() - song_start_time + LYRIC_OFFSET
 
                 if is_synced:
-                    current_line, prev_line, next_line = get_current_line(lyric_lines, elapsed)
+                    prev2, prev1, current_line, next1, next2 = get_current_line(lyric_lines, elapsed)
                 else:
-                    idx          = min(int(elapsed / 4), len(lyric_lines) - 1)
-                    current_line = lyric_lines[idx][1]
-                    prev_line    = lyric_lines[idx - 1][1] if idx > 0 else ""
-                    next_line    = lyric_lines[idx + 1][1] if idx + 1 < len(lyric_lines) else ""
+                    idx    = min(int(elapsed / 4), len(lyric_lines) - 1)
+                    def at(i): return lyric_lines[i][1] if 0 <= i < len(lyric_lines) else ""
+                    prev2, prev1 = at(idx - 2), at(idx - 1)
+                    current_line = at(idx)
+                    next1, next2 = at(idx + 1), at(idx + 2)
 
                 set_state({
                     "status":  "lyrics",
                     "artist":  current_song["artist"],
                     "title":   current_song["title"],
+                    "prev2":   prev2,
+                    "prev1":   prev1,
                     "current": current_line,
-                    "prev":    prev_line,
-                    "next":    next_line,
+                    "next1":   next1,
+                    "next2":   next2,
                 })
 
             time.sleep(LOOP_INTERVAL)
