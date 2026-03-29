@@ -16,7 +16,7 @@ import numpy as np
 import sounddevice as sd
 from dotenv import load_dotenv
 
-from recognizer import ACRCloudRecognizer
+from recognizer import AudDRecognizer
 from lyrics import fetch_lyrics, get_current_line
 from server import run as run_server, set_state
 
@@ -68,12 +68,9 @@ def recognition_worker(
 
 
 def main():
-    acr_host   = os.environ["ACR_HOST"]
-    acr_key    = os.environ["ACR_KEY"]
-    acr_secret = os.environ["ACR_SECRET"]
-
-    recognizer = ACRCloudRecognizer(
-        host=acr_host, key=acr_key, secret=acr_secret, sample_rate=SAMPLE_RATE
+    recognizer = AudDRecognizer(
+        api_token=os.environ["AUDD_TOKEN"],
+        sample_rate=SAMPLE_RATE,
     )
 
     # Start Flask server in background thread
